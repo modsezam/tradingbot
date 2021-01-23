@@ -1,0 +1,29 @@
+hello-world-view,
+#hello-world-view {
+  display: block;
+}
+
+#hello-world-view .pair-symbol-wrapper {
+  margin-top: 0px;
+}
+
+#hello-world-view .actual-price-wrapper {
+  margin-top: 0px;
+}
+#hello-world-view .actual-price-wrapper .price-div{
+  font-size: 30px;
+  font-weight: 700;
+}
+#hello-world-view .actual-price-wrapper .red{
+  color: red;
+}
+#hello-world-view .actual-price-wrapper .green{
+  color: green;
+}
+#hello-world-view .actual-price-wrapper .white{
+  color: white;
+}
+#hello-world-view .actual-price-wrapper .symbol-div{
+  font-size: 15px;
+  margin-left: 5px;
+}
