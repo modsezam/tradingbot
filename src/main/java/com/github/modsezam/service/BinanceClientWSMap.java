@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -30,9 +31,13 @@ public class BinanceClientWSMap {
     public String getLastTradeEventPrice(String pairSymbol) {
         BinanceClientWS binanceClientWS = binanceClientWSMap.get(pairSymbol);
         if (binanceClientWS != null){
-            return binanceClientWS.getLastTradeEventPrice();
+            return String.valueOf(binanceClientWS.getCurrentTradeTime());
         }
         return "-";
+    }
+
+    public Optional<BinanceClientWS> getBinanceClientWS(String pairSymbol) {
+        return Optional.ofNullable(binanceClientWSMap.get(pairSymbol));
     }
 
 

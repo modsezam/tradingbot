@@ -1,5 +1,8 @@
 package com.github.modsezam.views.helloworld;
 
+import com.github.modsezam.api.binance.domain.event.AggTradeEvent;
+import com.github.modsezam.service.BinanceAsyncClient;
+import com.github.modsezam.service.BinanceClient;
 import com.github.modsezam.service.BinanceClientWS;
 import com.github.modsezam.service.BinanceClientWSMap;
 import com.vaadin.flow.component.*;
@@ -14,7 +17,7 @@ import com.github.modsezam.views.main.MainView;
 import com.vaadin.flow.router.RouteAlias;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import java.util.Locale;
+import java.util.Optional;
 
 @Route(value = "hello", layout = MainView.class)
 @PageTitle("Hello World")
@@ -26,12 +29,19 @@ public class HelloWorldView extends VerticalLayout implements PollNotifier {
     private String actualPrice;
     private String priceUnit;
     private Div priceDiv;
+    private Div changeDiv;
 
     private final BinanceClientWSMap binanceClientWSMap;
 
+    private final BinanceClient binanceClient;
 
-    public HelloWorldView(BinanceClientWSMap binanceClientWSMap) {
+    private final BinanceAsyncClient binanceAsyncClient;
+
+
+    public HelloWorldView(BinanceClientWSMap binanceClientWSMap, BinanceClient binanceClient, BinanceAsyncClient binanceAsyncClient) {
         this.binanceClientWSMap = binanceClientWSMap;
+        this.binanceClient = binanceClient;
+        this.binanceAsyncClient = binanceAsyncClient;
 
 //        binanceClientWSService.createBoot("btcusdt");
 
@@ -99,7 +109,7 @@ public class HelloWorldView extends VerticalLayout implements PollNotifier {
 //
 //        add(layout);
 
-        pairSymbol = "BTCUSDT";
+        pairSymbol = "ETHBTC";
         actualPrice = "41,323.23";
         priceUnit = "USDT";
 
@@ -118,12 +128,24 @@ public class HelloWorldView extends VerticalLayout implements PollNotifier {
         add(closeClient);
         Button createClient = new Button("create client WS");
         add(createClient);
+        Button testClient = new Button("test client");
+        add(testClient);
+        Button testAsyncClient = new Button("test async client");
+        add(testAsyncClient);
 
         closeClient.addClickListener(e -> {
             binanceClientWSMap.closeBinanceClientWS(pairSymbol);
         });
         createClient.addClickListener(e -> {
             binanceClientWSMap.createNewBinanceClientWS(pairSymbol);
+        });
+        testClient.addClickListener(e -> {
+            System.out.println("size " +  binanceClientWSMap.getBinanceClientWS(pairSymbol).get().getTradeEventQueue().size());
+            binanceClientWSMap.getBinanceClientWS(pairSymbol).get().getTradeEventQueue().forEach((aLong, aggTradeEvent) -> System.out.println(aLong));
+            System.out.println("end");
+        });
+        testAsyncClient.addClickListener(e -> {
+            binanceAsyncClient.getAccount();
         });
 
     }
@@ -153,14 +175,18 @@ public class HelloWorldView extends VerticalLayout implements PollNotifier {
         priceDiv.setText(actualPrice);
         priceDiv.setClassName("price-div");
 
-
         Div symbolDiv = new Div();
         symbolDiv.setText(priceUnit);
         symbolDiv.setClassName("symbol-div");
 
+        changeDiv = new Div();
+        changeDiv.setText("");
+        changeDiv.setClassName("changeDiv-div");
+
         actualPriceWrapper.setAlignItems(Alignment.BASELINE);
         actualPriceWrapper.add(priceDiv);
         actualPriceWrapper.add(symbolDiv);
+        actualPriceWrapper.add(changeDiv);
 
         return actualPriceWrapper;
     }
@@ -183,8 +209,19 @@ public class HelloWorldView extends VerticalLayout implements PollNotifier {
 //            ui.get().access(() -> priceDiv.setText(actualPrice));
 //            System.out.println("is present");
 //        }
-        if (getUI().isPresent()){
-            getUI().get().access(() -> priceDiv.setText(binanceClientWSMap.getLastTradeEventPrice(pairSymbol)));
+        if (getUI().isPresent()) {
+            getUI().get().access(() -> {
+
+                Optional<BinanceClientWS> optBinanceClientWS = binanceClientWSMap.getBinanceClientWS(pairSymbol);
+                if (optBinanceClientWS.isPresent()) {
+                    priceDiv.setText(String.valueOf(optBinanceClientWS.get().getCurrentPrice()));
+                    Optional<AggTradeEvent> optLastMinutesPrice = optBinanceClientWS.get().getLastSecondsPrice(15L);
+                    optLastMinutesPrice.ifPresent(aggTradeEvent -> {
+                        System.out.println("aggTradeEvent.getPrice() = " + aggTradeEvent.getPrice());
+                        changeDiv.setText(aggTradeEvent.getPrice());
+                    });
+                }
+            });
         }
 //        getUI().get().access(() -> priceDiv.setText(actualPrice));
     }
