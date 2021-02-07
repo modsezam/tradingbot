@@ -140,9 +140,10 @@ public class HelloWorldView extends VerticalLayout implements PollNotifier {
             binanceClientWSMap.createNewBinanceClientWS(pairSymbol);
         });
         testClient.addClickListener(e -> {
-            System.out.println("size " +  binanceClientWSMap.getBinanceClientWS(pairSymbol).get().getTradeEventQueue().size());
-            binanceClientWSMap.getBinanceClientWS(pairSymbol).get().getTradeEventQueue().forEach((aLong, aggTradeEvent) -> System.out.println(aLong));
-            System.out.println("end");
+            System.out.println("time 5s - " + binanceClientWSMap.getBinanceClientWS(pairSymbol).get().getPriceFromLastSecond(5L));
+            System.out.println("time 30s - " + binanceClientWSMap.getBinanceClientWS(pairSymbol).get().getPriceFromLastSecond(30L));
+            System.out.println("time 200s - " + binanceClientWSMap.getBinanceClientWS(pairSymbol).get().getPriceFromLastSecond(200L));
+
         });
         testAsyncClient.addClickListener(e -> {
             binanceAsyncClient.getAccount();
@@ -215,11 +216,6 @@ public class HelloWorldView extends VerticalLayout implements PollNotifier {
                 Optional<BinanceClientWS> optBinanceClientWS = binanceClientWSMap.getBinanceClientWS(pairSymbol);
                 if (optBinanceClientWS.isPresent()) {
                     priceDiv.setText(String.valueOf(optBinanceClientWS.get().getCurrentPrice()));
-                    Optional<AggTradeEvent> optLastMinutesPrice = optBinanceClientWS.get().getLastSecondsPrice(15L);
-                    optLastMinutesPrice.ifPresent(aggTradeEvent -> {
-                        System.out.println("aggTradeEvent.getPrice() = " + aggTradeEvent.getPrice());
-                        changeDiv.setText(aggTradeEvent.getPrice());
-                    });
                 }
             });
         }

@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 public class BinanceClientWS {
@@ -41,36 +40,38 @@ public class BinanceClientWS {
         BinanceApiWebSocketClient clientWS = binanceClientFactoryService.getBinanceWSClient().newWebSocketClient();
         tempTradeTime = (System.currentTimeMillis() / 1000) * 1000;
         closeableClientWS = clientWS.onAggTradeEvent(this.pairSymbol, response -> {
-
-            currentTradeTime = response.getEventTime();
-            currentPrice = response.getPrice();
-            if (currentTradeTime > tempTradeTime) {
-                if (iterationAreMissed()) {
-                    long missedIteration = (currentTradeTime - tempTradeTime) / timeDifference;
-
-                    for (int i = 0; i < missedIteration; i++) {
-                        tradeEventQueue.put(tempTradeTime + (i * timeDifference),
-                                tradeEventQueue.getOrDefault(tempTradeTime - timeDifference, new AggTradeEvent()));
-                        log.info("new tradeEventQueue tempTradeTime: {}, actualTradeDiffTime: (missed)",
-                                tempTradeTime + (i * timeDifference));
-                    }
-                    long newLastTradeTime = tempTradeTime + (missedIteration * timeDifference);
-                    tradeEventQueue.put(newLastTradeTime, response);
-                    log.info("new tradeEventQueue tempTradeTime: {}, actualTradeDiffTime: {}",
-                            newLastTradeTime, tradeEventQueue.get(newLastTradeTime).getTradeTime() - newLastTradeTime);
-                    tempTradeTime = newLastTradeTime + timeDifference;
-
-                } else {
-                    tradeEventQueue.put(tempTradeTime, response);
-                    log.info("new tradeEventQueue tempTradeTime: {}, actualTradeDiffTime: {} (main)",
-                            tempTradeTime, tradeEventQueue.get(tempTradeTime).getTradeTime() - tempTradeTime);
-                    tempTradeTime += timeDifference;
-                }
-            }
-            log.debug("new event from pair {} - price {}", pairSymbol, response.getPrice());
+            handlingRequest(pairSymbol, response);
         });
-
         log.info("create new Binance WS client - pair {}", pairSymbol);
+    }
+
+    private void handlingRequest(String pairSymbol, AggTradeEvent response) {
+        currentTradeTime = response.getEventTime();
+        currentPrice = response.getPrice();
+        if (currentTradeTime > tempTradeTime) {
+            if (iterationAreMissed()) {
+                long missedIteration = (currentTradeTime - tempTradeTime) / timeDifference;
+
+                for (int i = 0; i < missedIteration; i++) {
+                    tradeEventQueue.put(tempTradeTime + (i * timeDifference),
+                            tradeEventQueue.getOrDefault(tempTradeTime - timeDifference, new AggTradeEvent()));
+                    log.debug("new tradeEventQueue tempTradeTime: {}, actualTradeDiffTime: (missed)",
+                            tempTradeTime + (i * timeDifference));
+                }
+                long newLastTradeTime = tempTradeTime + (missedIteration * timeDifference);
+                tradeEventQueue.put(newLastTradeTime, response);
+                log.debug("new tradeEventQueue tempTradeTime: {}, actualTradeDiffTime: {}",
+                        newLastTradeTime, tradeEventQueue.get(newLastTradeTime).getTradeTime() - newLastTradeTime);
+                tempTradeTime = newLastTradeTime + timeDifference;
+
+            } else {
+                tradeEventQueue.put(tempTradeTime, response);
+                log.debug("new tradeEventQueue tempTradeTime: {}, actualTradeDiffTime: {} (main)",
+                        tempTradeTime, tradeEventQueue.get(tempTradeTime).getTradeTime() - tempTradeTime);
+                tempTradeTime += timeDifference;
+            }
+        }
+        log.debug("new event from pair {} - price {}", pairSymbol, response.getPrice());
     }
 
     private boolean iterationAreMissed() {
@@ -85,8 +86,12 @@ public class BinanceClientWS {
 //        return Optional.ofNullable(tradeEventQueue.get(LocalDateTime.now().minusMinutes(minutes).withNano(0)));
 //    }
 
-    public Optional<AggTradeEvent> getLastSecondsPrice(Long seconds) {
-        return Optional.ofNullable(tradeEventQueue.get(System.currentTimeMillis() / 1000 - seconds));
+    public String getPriceFromLastSecond(Long seconds) {
+        Optional<AggTradeEvent> lastPriceOpt =
+                Optional.ofNullable(tradeEventQueue.getOrDefault(tempTradeTime - (seconds * 1000), null));
+        return lastPriceOpt
+                .map(ate -> String.valueOf((Double.parseDouble(ate.getPrice()) * 100.0) / Double.parseDouble(currentPrice) - 100))
+                .orElse("-");
     }
 
     public void closeClientWS() {
